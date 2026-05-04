@@ -75,23 +75,23 @@ _SUMMARY_CONFIGS = {
         max_new_tokens=60,
         min_new_tokens=10,
         num_beams=4,
-        length_penalty=0.8,
+        length_penalty=0.6,
         no_repeat_ngram_size=3,
         repetition_penalty=1.3,
     ),
     "medium": dict(
-        max_new_tokens=120,
-        min_new_tokens=20,
+        max_new_tokens=150,
+        min_new_tokens=40,
         num_beams=5,
         length_penalty=1.0,
         no_repeat_ngram_size=3,
         repetition_penalty=1.3,
     ),
     "big": dict(
-        max_new_tokens=200,
-        min_new_tokens=40,
+        max_new_tokens=400,
+        min_new_tokens=120,
         num_beams=6,
-        length_penalty=1.2,
+        length_penalty=2.5,
         no_repeat_ngram_size=3,
         repetition_penalty=1.2,
     ),
@@ -139,10 +139,14 @@ def generate_text(input_text: str, length: str = "medium") -> str:
         # body = _extract_key_sentences(body)
 
         # Enriched prompt — guides T5 toward abstractive output
-        processed = (
-            "Summarize the following article into a concise, coherent paragraph "
-            "covering the main ideas: " + body
-        )
+        if length == "small":
+            prompt_instruction = "Provide a very brief, one-sentence summary of the following text: "
+        elif length == "big":
+            prompt_instruction = "Provide a long, highly detailed and comprehensive summary of the following text, covering all main points and nuances in multiple sentences: "
+        else:
+            prompt_instruction = "Summarize the following article into a concise, coherent paragraph covering the main ideas: "
+
+        processed = prompt_instruction + body
 
 
     inputs = tokenizer(
@@ -161,8 +165,13 @@ def generate_text(input_text: str, length: str = "medium") -> str:
 
         # Dynamically scale min_new_tokens for short inputs
         # Prevents copy-paste behavior when input is small
-        if input_word_count < 100:
-            adjusted_min = min(cfg["min_new_tokens"], max(10, input_word_count // 4))
+        if input_word_count < 200:
+            if length == "big":
+                adjusted_min = min(cfg["min_new_tokens"], max(30, int(input_word_count * 0.6)))
+            elif length == "small":
+                adjusted_min = min(cfg["min_new_tokens"], max(10, input_word_count // 6))
+            else:
+                adjusted_min = min(cfg["min_new_tokens"], max(15, input_word_count // 4))
             print(f"Adjusted min_new_tokens: {cfg['min_new_tokens']} → {adjusted_min} (short input)")
             cfg["min_new_tokens"] = adjusted_min
 
